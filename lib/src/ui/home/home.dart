@@ -1,9 +1,12 @@
+import 'dart:convert';
+import 'dart:ffi';
+
 import 'package:coco_app/src/blocs/home_bloc.dart';
 import 'package:coco_app/src/models/category_model.dart';
 import 'package:coco_app/src/widgets/categoryIcon/categoryIcon.dart';
-import 'package:coco_app/src/widgets/customAppBar/customAppBar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:textfield_tags/textfield_tags.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -29,7 +32,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late TextEditingController _controller;
   late HomeBloc bloc;
   late List<dynamic> blocData;
+  final FocusNode myFocusNode = FocusNode();
 
+  late String listaApi;
+  List<dynamic> listaElementos = [];
+  List<dynamic> listaCategories = [];
   late List<CategoryModel> allCategories;
   late List<String> allCategoriesName;
   late List<String> catNames;
@@ -159,15 +166,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     bloc = new HomeBloc();
     _controller = new TextEditingController();
-
-
     allCategories = [];
-    allCategoriesName = [];
+    allCategoriesName = [''];
     blocData = [];
     bloc.getTodosFetcher.listen((data) {
+      listaApi = data.substring(0, data.indexOf('function'));
+      listaElementos = listaApi.split(";");
+
+
+      List<Map<String,dynamic> > allList = [];
+      listaElementos.forEach((e) {
+
+        List<dynamic>? result =  extractArray(e);
+
+        if(result != null){
+          Map<String,dynamic> array = new Map<String,dynamic>();
+          String nameArray= result[1];
+          array[nameArray] =result[0];
+          allList.add(array);
+        }
+
+
+      });
+      print(allList);
+
+
+    });
+
+    bloc.postGetDataFromCategoriesFetcher.listen((data) {
       if (data.estadoPeticion.estado == 1) {
         setState(() {
           blocData = data.datos as List;
+
+
+          print(listaElementos);
         });
       }
     });
@@ -184,12 +216,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
      catNames = [
       'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
     ];
-    //bloc.getAll();
+   // bloc.getAll();
   }
 
   @override
   void dispose() {
     //aqui va el dispose
+    myFocusNode.dispose();
     super.dispose();
   }
 
@@ -224,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Container(
           child: Column(
             children: [
-             /* Container(
+              Container(
                 padding: EdgeInsets.only(top: 10, left: 10, right: 5, bottom: 5),
                 decoration: BoxDecoration(
                   //  border: new Border.all(color: Color(0xffE91E63), width: 1),
@@ -232,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: new BorderRadius.circular(5),
                 ),
                 child: TextFieldTags(
-
+                  myFocusNode: myFocusNode,
                   initialTags: allCategoriesName,
                   textSeparators: [" ", ".", ","],
                   tagsStyler: TagsStyler(
@@ -278,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     return null;
                   },
                 ),
-              ),*/
+              ),
               Container(
                 margin: EdgeInsets.only(left: 10, right: 10),
                 height: 45,
@@ -391,20 +424,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   scrollDirection: Axis.vertical,
                                   children: List.generate(categories[category]!.length, (index) {
                                     final cate = CategoryModel(categories[category]![index]);
-
+                                    var select=false;
                                     return Container(
                                       child: CategoryIcon(
                                           nombre: cate.name,
                                           id: cate.id,
                                           imagen: cate.image,
+                                          selected: select,
                                           onUsarEmisora: () {
                                             print("click "+ cate.name);
                                             setState(() {
+                                              select=true;
                                               String name= cate.name;
                                               allCategoriesName.add(name);
                                               allCategories.add(cate);
                                               print(allCategoriesName);
+
                                             });
+                                            FocusScope.of(context).unfocus();
+                                            FocusScope.of(context).requestFocus(myFocusNode);
                                           }),
                                     );
                                   }),
@@ -418,10 +456,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 height: 15,
               ),
-              Text(allCategoriesName.length.toString()),
+              /*for (final category in superCats)
+                categories[category] != null
+                  ?*/
               Container(
                 height: 15,
               ),
+              Container(
+                height: 15,
+              ),
+
+              GestureDetector(
+                onTap: ()async {
+                  var arrayCategories =allCategoriesName;
+                  arrayCategories.removeAt(0);
+                  await bloc.postGetDataFromCategories([8]);
+                },
+                child: Container(
+                  color:Colors.grey,
+                  child: Text(
+                    "traer datos"
+                  ),
+                ),
+              )
 
             ],
           ),
@@ -429,4 +486,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  List<dynamic>? extractArray(String e) {
+
+    if(e.contains("=") || e.contains("[")|| e.contains("{")){
+      final str = e;
+      const start = "var";
+      const end = "=";
+
+      final startIndex = str.indexOf(start);
+      final endIndex = str.indexOf(end, startIndex + start.length);
+      var nameArray= str.substring(startIndex + start.length, endIndex);
+
+      var endItems= str.substring(str.length-1);
+      final strItems = e;
+      const startItems = "=";
+
+      final startIndexItems = strItems.indexOf(startItems);
+      final endIndexItems = strItems.indexOf(endItems, startIndexItems + startItems.length);
+      var itemsArray= strItems.substring(startIndexItems + startItems.length, endIndexItems);
+      var notEmpty=false;
+      print(itemsArray.toString().trim().length);
+      if(itemsArray.toString().trim().length>2){
+        notEmpty=true;
+      }
+      if(itemsArray.contains('{') || itemsArray.contains('}')){
+        // isn't List<String>
+        var tagObjsJson = jsonDecode(itemsArray)['outdoor'] as List;
+
+        print(tagObjsJson);
+
+        return ['[]',nameArray];
+      }
+      final startIndexitemsArray = itemsArray.indexOf(itemsArray);
+      if(endItems != startIndexitemsArray){
+        itemsArray = itemsArray + endItems;
+      }
+      //List<String> stringsArray= itemsArray.split(',');
+
+      var result = [notEmpty ? itemsArray.split(','):'[]'  ,nameArray];
+      return result;
+
+    }
+    return null;
+
+  }
+
+
 }

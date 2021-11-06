@@ -7,9 +7,15 @@ import 'package:coco_app/src/resources/categories_provider.dart';
 class CategoriesRepository {
   final apiProvider = BannersProvider();
 
-  Future<GetDatosModel> getAll({
+  Future<String> getAll({
     int pagina = 1,
   }) {
     return apiProvider.getAll();
+  }
+
+  Future<GetDatosModel> postGetDataFromCategories({
+    required Map<String, dynamic> data,
+  }) {
+    return apiProvider.postGetDataFromCategories(body: data,);
   }
 }

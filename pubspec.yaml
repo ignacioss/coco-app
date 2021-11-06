@@ -42,6 +42,7 @@ dependencies:
   path_provider:
   responsive_container:
   skeleton_text:
+  dio: ^3.0.10
 
   #SEARCH BAR
   textfield_tags: ^1.4.2

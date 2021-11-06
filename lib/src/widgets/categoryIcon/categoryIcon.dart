@@ -5,10 +5,11 @@ class CategoryIcon extends StatelessWidget {
   final String? nombre;
   final int? id;
   final String? imagen;
+  final bool? selected;
   final Function onUsarEmisora;
 
 
-  const CategoryIcon({this.nombre, this.id, this.imagen,required this.onUsarEmisora});
+  const CategoryIcon({this.nombre, this.id, this.imagen,this.selected,required this.onUsarEmisora});
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +30,11 @@ class CategoryIcon extends StatelessWidget {
         width:30,
         height: 30,
         decoration: BoxDecoration(
+            border: Border.all(color: selected! ? Colors.green:Colors.transparent,width: 3),
           image: DecorationImage(image: NetworkImage(imagen!),
               fit: BoxFit.cover),
           color: Color(colorGrisClaro),
-          borderRadius: BorderRadius.circular(5),
+         // borderRadius: BorderRadius.circular(5),
           boxShadow: [ activo
               ? BoxShadow(
             color: Colors.grey.withOpacity(0.5),

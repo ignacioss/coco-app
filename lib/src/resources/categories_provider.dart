@@ -12,14 +12,15 @@ import 'package:coco_app/src/models/get_simple_model.dart';
 class BannersProvider {
   Client client = Client();
 
-  Future<GetDatosModel> getAll() async {
+  Future<String> getAll() async {
     String url = "$APIURL/other/cocoexplorer.js";
 
     final response = await client.get(url);
 
     if (response.statusCode == 200) {
       // listen for response
-
+      final str = response.body.toString();
+/*
       final str = response.body.toString();
       const start = "categories =";
       const end = ";";
@@ -34,12 +35,47 @@ class BannersProvider {
       final listw = json.decode(finall) as List;
       final arr = finall as List;
       print(arr);
-
-
-
-      return GetDatosModel.fromDecodedJson(json.decode(response.body));
+*/
+      return str;
     } else {
       throw Exception('Failed to load get');
     }
   }
+
+
+  Future<GetDatosModel> postGetDataFromCategories({
+   required Map<String, dynamic> body,
+  }) async {
+    String url;
+
+    url = "$APIURL_BIGQUERY";
+
+    var request = new MultipartRequest("POST", Uri.parse(url));
+
+    //request.headers.addAll({'Content-type': 'application/javascript; charset=utf-8'});
+
+    body.forEach((key, value) {
+      request.fields[key] = value.toString();
+    });
+
+    request.headers.addAll({'Content-type': 'application/javascript'});
+
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      // listen for response
+      var responseJson = await response.stream.transform(utf8.decoder).first;
+      return GetDatosModel.fromDecodedJson(json.decode(responseJson));
+    } else {
+      // Si el error tiene un formato reconocible, devolverlo
+      try {
+        var responseJson = await response.stream.transform(utf8.decoder).first;
+        return GetDatosModel.fromDecodedJson(json.decode(responseJson));
+      } catch (e) {
+        throw Exception('Failed to load post');
+      }
+    }
+  }
+
+
 }
