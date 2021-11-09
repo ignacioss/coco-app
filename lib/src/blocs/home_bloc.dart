@@ -7,7 +7,7 @@ class HomeBloc {
   bool isDisposed = false;
 
   final _getAllCategoriesFetcher = PublishSubject<String>();
-  final _postGetDataFromCategoriesFetcher = PublishSubject<GetDatosModel>();
+  final _postGetDataFromCategoriesFetcher = PublishSubject<List<dynamic>>();
 
   getAll() async {
     String itemModel = await _categoriesRepository.getAll();
@@ -16,17 +16,30 @@ class HomeBloc {
     }
   }
 
-  postGetDataFromCategories(dynamic category_ids) async {
-    GetDatosModel itemModel = await _categoriesRepository.postGetDataFromCategories(
+  postGetData(dynamic array_ids, String querytype) async {
+    List<int> itemModel = await _categoriesRepository.postGetDataFromCategories(
       data: {
-        "category_ids": category_ids,
-        "querytype":"getImagesByCats"
+        "category_ids": array_ids,
+        "querytype":querytype
       },
     );
     if (!isDisposed) {
       _postGetDataFromCategoriesFetcher.sink.add(itemModel);
     }
   }
+
+  postGetDataImage(dynamic array_ids, String querytype) async {
+    List<dynamic> itemModel = await _categoriesRepository.postGetDataFromImages(
+      data: {
+        "image_ids": array_ids,
+        "querytype":querytype
+      },
+    );
+    if (!isDisposed) {
+      _postGetDataFromCategoriesFetcher.sink.add(itemModel);
+    }
+  }
+
 
   dispose() {
     _getAllCategoriesFetcher.close();
@@ -35,5 +48,5 @@ class HomeBloc {
   }
 
   Stream<String> get getTodosFetcher => _getAllCategoriesFetcher.stream;
-  Stream<GetDatosModel> get postGetDataFromCategoriesFetcher => _postGetDataFromCategoriesFetcher.stream;
+  Stream<List<dynamic>> get postGetDataFromCategoriesFetcher => _postGetDataFromCategoriesFetcher.stream;
 }

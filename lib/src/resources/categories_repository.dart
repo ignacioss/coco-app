@@ -13,9 +13,14 @@ class CategoriesRepository {
     return apiProvider.getAll();
   }
 
-  Future<GetDatosModel> postGetDataFromCategories({
+  Future<List<int>> postGetDataFromCategories({
     required Map<String, dynamic> data,
   }) {
     return apiProvider.postGetDataFromCategories(body: data,);
+  }
+  Future<List<dynamic>> postGetDataFromImages({
+    required Map<String, dynamic> data,
+  }) {
+    return apiProvider.postGetDataFromImages(body: data,);
   }
 }
