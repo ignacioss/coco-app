@@ -25,23 +25,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   http:
-  latlong:
-  rxdart:
-  flutter_advanced_networkimage:
-  provider:
   overlay_support:
-  localstorage:
-  package_info:
-  device_info:
-  email_validator:
-  firebase_messaging:
-  firebase_core:
-  permission_handler:
-  recase:
-  path:
-  path_provider:
-  responsive_container:
-  skeleton_text:
 
 
   #SEARCH BAR
