@@ -5,8 +5,8 @@ var appThemeData = ThemeData(
   fontFamily: 'Ubuntu',
 
   // Colores
-  primaryColor: Color(0xFF911f6a),
-  accentColor: Color(0xFFe43537),
+  primaryColor: Color(0xFF1b83b3),
+  accentColor: Color(0xFF24b373),
   canvasColor: Color(0xFFEDF0F7),
   splashColor: Color(0x22AAAAAA),
   cursorColor: Color(0xFFe43537),

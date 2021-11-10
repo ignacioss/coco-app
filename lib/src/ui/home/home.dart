@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:coco_app/src/blocs/home_bloc.dart';
@@ -8,10 +9,11 @@ import 'package:coco_app/src/models/instance_image_model.dart';
 import 'package:coco_app/src/widgets/categoryIcon/categoryIcon.dart';
 import 'package:coco_app/src/widgets/loadingOverlay/loading_overlay.dart';
 import 'package:coco_app/src/widgets/paginationManager/pagination_list.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:textfield_tags/textfield_tags.dart';
-
-
+import 'dart:ui' as ui show Image;
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen();
@@ -61,39 +63,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int amountPerPage = 5;
   int numberPage = 0;
   late int categorySelected;
+  late ui.Image imageSelected;
+  late List<dynamic> arraySegmentation;
 
   ScrollController _scrollController = new ScrollController();
+
+  ChangeNotifier _repaint = ChangeNotifier();
 
   List<CategoryModel> itemsSelected = [];
 
   @override
   void initState() {
     super.initState();
-    categorySelected = 0;
+    categorySelected = -1;
+
     bloc = new HomeBloc();
     _controller = new TextEditingController();
     arrays = new Map<String, dynamic>();
+
     blocDataImages = [];
     blocDataImagesGet = [];
     blocDataImagesInstance = [];
     blocDataImagesCaption = [];
     allCategories = [];
+    arraySegmentation = [];
     allCategoriesName = ['']; // It is necessary to adapt the widget of the textfield_tags library
 
     bloc.getTodosFetcher.listen((data) {
       listaApi = data.substring(0, data.indexOf('function'));
       listaApi = listaApi.replaceAll("\n", "");
       listaElementos = listaApi.split(";");
+
+      // Get diferents arrays
       listaElementos.forEach((e) {
         if (e != "") {
           int indexIgual = e.indexOf("=");
 
-          String name = e; // Get name
+          // Get name
+          String name = e;
           name = name.substring(0, indexIgual - 1);
           name = name.replaceAll("var", "");
           name = name.trim();
 
-          String tmpValores = e; // Get values
+          // Get values
+          String tmpValores = e;
           tmpValores = tmpValores.substring(indexIgual + 1, tmpValores.length);
           tmpValores = tmpValores.replaceAll(" ", "");
           tmpValores = tmpValores.replaceAll("'", "\"");
@@ -107,9 +120,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             tmpValores = tmpValores.replaceAll("\"\"", "\"");
           }
           dynamic valores = jsonDecode(tmpValores);
+
+          /// Save all arrays in map [arrays]
           arrays[name] = valores;
         }
       });
+
+      // Separate arrays
       arrays.keys.forEach((element) {
         if (element == 'iconsSelected') {
           iconsSelected = arrays[element];
@@ -150,25 +167,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             blocDataImagesGet.add(blocDataGetImagesByCats[i]);
           }
           queryType = "getImages";
-          await bloc.postGetDataImage(blocDataImagesGet, queryType);
+          bloc.postGetDataImage(blocDataImagesGet, queryType);
         } else if (queryType == "getImages") {
           blocDataImages = data.map((e) => ImageModel(e)).toList();
           queryType = "getInstances";
-          await bloc.postGetDataImage(blocDataImagesGet, queryType);
+          bloc.postGetDataImage(blocDataImagesGet, queryType);
         } else if (queryType == "getInstances") {
           blocDataImagesInstance = data.map((e) => InstanceImageModel(e)).toList();
           queryType = "getCaptions";
-          await bloc.postGetDataImage(blocDataImagesGet, queryType);
+          bloc.postGetDataImage(blocDataImagesGet, queryType);
         } else if (queryType == "getCaptions") {
           blocDataImagesCaption = data.map((e) => CaptionImagesModel(e)).toList();
+        }
+        if (blocDataGetImagesByCats.isNotEmpty &&
+            blocDataImages.isNotEmpty &&
+            blocDataImagesInstance.isNotEmpty &&
+            blocDataImagesCaption.isNotEmpty) {
           setState(() {
             allLoadedImages = true;
-            //       LoadingOverlay.of(context)!.setIsLoading(true);
+            LoadingOverlay.of(context)!.setIsLoading(false);
           });
         }
       }
     });
-
     bloc.getAll();
   }
 
@@ -210,144 +231,167 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Container(
             child: allLoaded == true
                 ? Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.only(top: 10, left: 10, right: 5, bottom: 5),
-                  decoration: BoxDecoration(
-                    //  border: new Border.all(color: Color(0xffE91E63), width: 1),
-                    color: Colors.white,
-                    borderRadius: new BorderRadius.circular(5),
-                  ),
-                  child: TextFieldTags(
-                    myFocusNode: myFocusNode,
-                    initialTags: allCategoriesName,
-                    textSeparators: [" ", ".", ","],
-                    tagsStyler: TagsStyler(
-                      tagTextStyle: TextStyle(color: Colors.black),
-                      tagDecoration: BoxDecoration(
-                        color: Theme.of(context).canvasColor,
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      tagCancelIcon: Icon(Icons.cancel, size: 16.0, color: Theme.of(context).primaryColor),
-                      tagPadding: const EdgeInsets.all(10.0),
-                    ),
-                    textFieldStyler: TextFieldStyler(
-                      hintText: "Categories...",
-                      hintStyle: TextStyle(color: Colors.grey),
-                      textStyle: TextStyle(color: Colors.black),
-                      isDense: false,
-                      icon: Icon(Icons.search),
-                      contentPadding: EdgeInsets.all(0),
-                      textFieldFocusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black, width: 3.0),
-                      ),
-                      textFieldBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black, width: 3.0),
-                      ),
-                    ),
-                    onDelete: (tag) {
-                      allCategoriesName.remove(tag);
-                    },
-                    onTag: (tag) {
-                      allCategoriesName.add(tag);
-                    },
-                    validator: (String tag) {
-                      if (tag.length > 15) {
-                        return "hey that is too much";
-                      } else if (tag.isEmpty) {
-                        return "enter something";
-                      }
+                    children: [
+                      Container(
+                        color: Colors.white,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                              width: MediaQuery.of(context).size.width - 75,
+                              padding: EdgeInsets.only(top: 15, left: 10, right: 5, bottom: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: new BorderRadius.circular(5),
+                              ),
+                              child: TextFieldTags(
+                                myFocusNode: myFocusNode,
+                                initialTags: allCategoriesName,
+                                textSeparators: [" ", ".", ","],
+                                tagsStyler: TagsStyler(
+                                  tagTextStyle: TextStyle(color: Colors.black),
+                                  tagDecoration: BoxDecoration(
+                                    color: Theme.of(context).canvasColor,
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  tagCancelIcon: Icon(Icons.cancel, size: 16.0, color: Theme.of(context).primaryColor),
+                                  tagPadding: const EdgeInsets.all(10.0),
+                                ),
+                                textFieldStyler: TextFieldStyler(
+                                  cursorColor: Colors.white,
+                                  hintText: "Categories...",
+                                  hintStyle: TextStyle(color: Colors.grey),
+                                  textStyle: TextStyle(color: Colors.black),
+                                  isDense: false,
+                                  contentPadding: EdgeInsets.all(0),
+                                  textFieldFocusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.black, width: 3.0),
+                                  ),
+                                  textFieldBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.black, width: 3.0),
+                                  ),
+                                ),
+                                onDelete: (tag) {
+                                  if (tag != '') allCategoriesName.remove(tag);
+                                  if(allCategoriesName.length == 0){
+                                    setState(() {
+                                      allCategoriesName= [''];
+                                    });
+                                  }
 
-                      return null;
-                    },
-                  ),
-                ),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final category in superCats)
-                          categories[category] != null
-                              ? Container(
-                            width: 150,
-                            child: GridView.count(
-                              crossAxisCount: 2,
-                              physics: const NeverScrollableScrollPhysics(),
-                              //quita scroll del Grid
-                              childAspectRatio: (10 / 10),
-                              controller: new ScrollController(keepScrollOffset: false),
-                              shrinkWrap: true,
-                              scrollDirection: Axis.vertical,
-                              children: List.generate(categories[category].length, (index) {
-                                final cate = CategoryModel(categories[category][index]);
-                                var select = false;
-                                return Container(
-                                  child: CategoryIcon(
-                                      nombre: cate.name,
-                                      id: cate.id,
-                                      imagen: cate.image,
-                                      selected: select,
-                                      onUsarEmisora: () {
-                                        print("click " + cate.name);
-                                        setState(() {
-                                          select = true;
-                                          String name = cate.name;
-                                          allCategoriesName.add(name);
-                                          // allCategories.add(cate);
-                                          print(allCategoriesName);
-                                        });
-                                        FocusScope.of(context).unfocus();
-                                        FocusScope.of(context).requestFocus(myFocusNode);
-                                      }),
-                                );
-                              }),
+                                },
+                                onTag: (tag) {
+                                  allCategoriesName.add(tag);
+                                },
+                                validator: (String tag) {
+                                  if (tag.length > 15) {
+                                    return "hey that is too much";
+                                  } else if (tag.isEmpty) {
+                                    return "enter something";
+                                  }
+
+                                  return null;
+                                },
+                              ),
                             ),
-                          )
-                              : Container()
-                      ],
-                    ),
-                  ),
-                ),
-                Container(
-                  height: 15,
-                ),
-                allLoadedImages == true
-                    ? SingleChildScrollView(
-                  child: Container(
-                    child: _buildLista(),
-                  ),
-                )
-                    : Container(),
-                Container(
-                  height: 15,
-                ),
-                Container(
-                  height: 15,
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    // LoadingOverlay.of(context)!.setIsLoading(true);
-                    blocDataImagesCaption = [];
-                    if (allCategoriesName.contains('')) {
-                      // To delete Empty element
-                      allCategoriesName.removeAt(allCategoriesName.indexOf(''));
-                    }
-                    var categoryIds = [];
-                    allCategoriesName.forEach((x) {
-                      categoryIds.add(catToId[x]);
-                    });
-                    queryType = "getImagesByCats";
-                    await bloc.postGetData(categoryIds, queryType);
-                  },
-                  child: Container(
-                    color: Colors.grey,
-                    child: Text("traer datos"),
-                  ),
-                )
-              ],
-            )
+                            Container(
+                              width: 15,
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                LoadingOverlay.of(context)!.setIsLoading(true);
+                                blocDataGetImagesByCats = [];
+                                blocDataImages = [];
+                                blocDataImagesInstance = [];
+                                blocDataImagesCaption = [];
+
+                                if (allCategoriesName.contains('')) {
+                                  // To delete Empty element
+                                  allCategoriesName.removeAt(allCategoriesName.indexOf(''));
+                                }
+                                var categoryIds = [];
+                                allCategoriesName.forEach((x) {
+                                  categoryIds.add(catToId[x]);
+                                });
+                                queryType = "getImagesByCats";
+                                await bloc.postGetData(categoryIds, queryType);
+                              },
+                              child: Container(
+                                  height: 35,
+                                  width: 35,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).canvasColor,
+                                    borderRadius: new BorderRadius.circular(5),
+                                  ),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context).primaryColor,
+                                  )),
+                            )
+                          ],
+                        ),
+                      ),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Container(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final category in superCats)
+                                categories[category] != null
+                                    ? Container(
+                                        width: 150,
+                                        child: GridView.count(
+                                          crossAxisCount: 2,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          //quita scroll del Grid
+                                          childAspectRatio: (10 / 10),
+                                          controller: new ScrollController(keepScrollOffset: false),
+                                          shrinkWrap: true,
+                                          scrollDirection: Axis.vertical,
+                                          children: List.generate(categories[category].length, (index) {
+                                            final cate = CategoryModel(categories[category][index]);
+                                            var select = false;
+                                            return Container(
+                                              child: CategoryIcon(
+                                                  nombre: cate.name,
+                                                  id: cate.id,
+                                                  imagen: cate.image,
+                                                  selected: select,
+                                                  onUsarEmisora: () {
+                                                    setState(() {
+                                                      select = true;
+                                                      allCategoriesName.add(cate.name);
+                                                    });
+                                                    FocusScope.of(context).unfocus();
+                                                    FocusScope.of(context).requestFocus(myFocusNode);
+                                                  }),
+                                            );
+                                          }),
+                                        ),
+                                      )
+                                    : Container()
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        height: 15,
+                      ),
+                      allLoadedImages == true
+                          ? SingleChildScrollView(
+                              child: Container(
+                                child: _buildLista(),
+                              ),
+                            )
+                          : Container(),
+                      Container(
+                        height: 15,
+                      ),
+                    ],
+                  )
                 : Container()),
       ),
     );
@@ -371,154 +415,241 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         bloc.postGetDataImage(blocDataImagesGet, queryType);
       },
       separator: Container(
-        height: 5,
+        height: 15,
       ),
-      itemBuilder: (context, position)  {
+      itemBuilder: (context, position) {
         ImageModel item = blocDataImages[position];
 
         var imagesCategory = [];
         List<InstanceImageModel> imageFotIconsCategory = [];
+        var segmentation = new Map<String, dynamic>();
         for (int i = 0; i < blocDataImagesInstance.length; i++) {
           var e = blocDataImagesInstance[i];
 
           if (e.image_id == item.id) {
             imagesCategory.add(e);
             bool exist = false;
-            /* for (int j = 0; j < imageFotIconsCategory.length; j++) {
-              if (imageFotIconsCategory[j].category_id == e.category_id ) exist = true;
+
+            for (int j = 0; j < imageFotIconsCategory.length; j++) {
+              if (imageFotIconsCategory[j].category_id == e.category_id) {
+                exist = true;
+              }
             }
-            if (!exist) imageFotIconsCategory.add(e);*/
+            if (!exist) {
+              imageFotIconsCategory.add(e);
+            }
           }
         }
 
+        var viewSentencesArray = [];
         var captions = [];
         for (int i = 0; i < blocDataImagesCaption.length; i++) {
           var e = blocDataImagesCaption[i];
-          if (e.image_id == item.id) captions.add(e);
+          if (e.image_id == item.id) {
+            captions.add(e);
+            viewSentencesArray.add(e.caption);
+          }
         }
 
+        // Convert Image.network to Image
+        final Image imageUi = Image.network(
+          item.coco_url,
+          width: MediaQuery.of(context).size.width,
+        );
+        final completer = Completer<ui.Image>();
+        imageUi.image
+            .resolve(const ImageConfiguration())
+            .addListener(ImageStreamListener((ImageInfo info, bool syncCall) => completer.complete(info.image)));
+
+        var viewUrlsArray = [];
+        viewUrlsArray.add('http://cocodataset.org/#explore?id=' + item.id.toString());
+        viewUrlsArray.add(item.flickr_url);
+
+        
+
         return Container(
-          margin: EdgeInsets.only(bottom: 15),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.transparent, width: 3),
-                      image: DecorationImage(image: NetworkImage('https://cocodataset.org/images/cocoicons/url.jpg'), fit: BoxFit.cover),
-                    ),
-                  ),
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.transparent, width: 3),
-                      image:
-                      DecorationImage(image: NetworkImage('https://cocodataset.org/images/cocoicons/sentences.jpg'), fit: BoxFit.cover),
-                    ),
-                  ),
-                     for (var image in imageFotIconsCategory)
-                    GestureDetector(
-                      onTap: () {
-                        categorySelected = image.category_id;
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.transparent, width: 3),
-                          image: DecorationImage(
-                              image: NetworkImage('https://cocodataset.org/images/cocoicons/' + image.image_id.toString() + '.jpg'),
-                              fit: BoxFit.cover),
+            margin: EdgeInsets.only(bottom: 15),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              //viewUrls = false;
+                            });
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.transparent, width: 3),
+                              image: DecorationImage(
+                                  image: NetworkImage('https://cocodataset.org/images/cocoicons/url.jpg'), fit: BoxFit.cover),
+                            ),
+                          ),
                         ),
-                      ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                           //   viewSentences != viewSentences;
+                            });
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.transparent, width: 3),
+                              image: DecorationImage(
+                                  image: NetworkImage('https://cocodataset.org/images/cocoicons/sentences.jpg'), fit: BoxFit.cover),
+                            ),
+                          ),
+                        ),
+                        for (var image in imageFotIconsCategory)
+                          GestureDetector(
+                            onTap: () {
+                              categorySelected = image.category_id;
+                              arraySegmentation = [];
+                              for (int i = 0; i < blocDataImagesInstance.length; i++) {
+                                var e = blocDataImagesInstance[i];
+                                if (e.category_id == image.category_id && e.image_id == image.image_id) {
+                                  arraySegmentation.add(e.segmentation);
+                                }
+                              }
+                              setState(() {
+                                // Notify to repaint CustomPaint
+                                _repaint.notifyListeners();
+                              });
+                            },
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.transparent, width: 3),
+                                image: DecorationImage(
+                                    image:
+                                        NetworkImage('https://cocodataset.org/images/cocoicons/' + image.category_id.toString() + '.jpg'),
+                                    fit: BoxFit.cover),
+                              ),
+                            ),
+                          ),
+                        GestureDetector(
+                          onTap: () {
+                            // Clear Seggments
+                            arraySegmentation = [];
+                            setState(() {
+                              // Notify to repaint CustomPaint
+                              _repaint.notifyListeners();
+                            });
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.transparent, width: 3),
+                              image: DecorationImage(
+                                  image: NetworkImage('https://cocodataset.org/images/cocoicons/blank.jpg'), fit: BoxFit.cover),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.transparent, width: 3),
-                      image: DecorationImage(image: NetworkImage('https://cocodataset.org/images/cocoicons/blank.jpg'), fit: BoxFit.cover),
-                    ),
-                  ),
-                ],
-              ),
-              /* FittedBox(
-                child: SizedBox(
-                  child: CustomPaint(
-                    painter: MyPainter('https://cocodataset.org/images/cocoicons/' + image.toString() + '.jpg'),
                   ),
                 ),
-              ),*/
-              Container(
-                color: Colors.green,
-                height: 15,
-              ),
+               for(var link in viewUrlsArray)
 
-             Center(
-               child:  Stack(
-                 children: [
-                   //Image.network(item.coco_url, fit: BoxFit.fill),
-                   CustomPaint(
-                     painter: MyPainter(category: categorySelected, image: item.coco_url),
-                   )
-                 ],
-               ),
-             )
-            ],
-          ),
-        );
+                Container(
+                  margin: EdgeInsets.only(bottom: 2),
+                  child:  GestureDetector(
+                      child: new Text(
+                        link,
+                        style: TextStyle(color: Colors.blue),
+                      ),
+                      onTap: () => launch(link)),
+                ),
+                Container(height: 5),
+                for(var caption in viewSentencesArray)
+                  Container(
+                    margin: EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      caption,
+                      style: TextStyle(color: Colors.black),
+                    ),
+                  ),
+                FutureBuilder<ui.Image>(
+                    future: completer.future,
+                    builder: (BuildContext context, AsyncSnapshot<ui.Image> snapshot) {
+                      if (snapshot.hasData) {
+                        imageSelected = snapshot.data!;
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Container(
+                            height: snapshot.data!.height + 15,
+                            width: MediaQuery.of(context).size.width + 300,
+                            child: CustomPaint(
+                              painter: MyPainter(
+                                  category: categorySelected, imageC: snapshot.data, segmentation: arraySegmentation, repaint: _repaint),
+                            ),
+                          ),
+                        );
+                      } else {
+                        return Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                    }),
+              ],
+            ));
       },
     );
   }
-
 }
 
 class MyPainter extends CustomPainter {
-  MyPainter({required this.category, required this.image});
+  MyPainter({required this.category, required this.imageC, required this.segmentation, required this.repaint});
 
   final int category;
-  final String image;
+  final ui.Image? imageC;
+  final List<dynamic>? segmentation;
+  final ChangeNotifier? repaint;
 
   @override
   Future<void> paint(Canvas canvas, Size size) async {
-
-    /*Image imageCategoryUrl = new Image.network(image);
-    final Image imageCategory= new Image(image: imageCategoryUrl,);
-    imageCategory = imageCategoryUrl as Image;
-
-
-    canvas.drawImage(imageCategoryUrl, Offset.zero, Paint());*/
-    Paint paint = Paint();
-    paint
-      ..color = Color(0xff000000)
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 3.0;
+    canvas.drawImage(imageC!, Offset.zero, Paint());
 
     Paint paint1 = Paint();
     paint1
       ..color = Color(0xffff0000)
-      ..style = PaintingStyle.fill
-      ..strokeWidth = 0;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5;
 
-    double width = size.width;
-    double height = size.height;
-    var as = Offset(width / 4, 0);
-    print(as);
+    if (category != -1) {
+      for (final drag in segmentation!) {
+        Path path = Path();
+        // var polys = jsonDecode(drag['segmentation']);
+        var polys = jsonDecode(drag);
 
-    Path path = Path();
-    path.addPolygon([Offset.zero, Offset(width / 4, 0), Offset(width, height), Offset(width - (width / 4), height)], true);
-    Path path2 = Path();
-    path2.addPolygon([Offset(width, 0), Offset(width - (width / 4), 0), Offset(0, height), Offset(0 + (width / 4), height)], true);
+        // loop over all polygons
+        for (var k = 0; k < polys.length; k++) {
+          var poly = polys[k];
 
-    canvas.drawPath(path, paint1);
-    canvas.drawPath(path2, paint1);
-    // canvas.drawPath(path, paint); //border
-    // canvas.drawPath(path2, paint); //border
+          path.moveTo(poly[0], poly[1]);
+          for (var m = 0; m < poly.length - 2; m += 2) {
+            // let's draw!!!!
+            path.lineTo(poly[m + 2], poly[m + 3]);
+          }
+          path.lineTo(poly[0], poly[1]);
+        }
+
+        canvas.drawPath(path, paint1);
+      }
+    }
   }
 
   @override

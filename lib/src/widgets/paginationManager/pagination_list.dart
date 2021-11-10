@@ -125,7 +125,7 @@ class _PaginationListState extends State<PaginationList> {
           ListView.separated(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
-            reverse: true,
+            reverse: false,
             padding: widget.padding,
             itemBuilder: (context, position) {
 

@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'package:coco_app/src/models/get_datos_model.dart';
-import 'package:flutter/foundation.dart';
-import 'package:coco_app/src/models/get_simple_model.dart';
 import 'package:coco_app/src/resources/categories_provider.dart';
 
 class CategoriesRepository {
